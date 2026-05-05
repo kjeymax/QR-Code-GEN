@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useBarcodeStore } from '../../stores/barcodeStore';
-import { BARCODE_FORMATS, FORMAT_LIST, FORMATS_1D, FORMATS_2D } from '../../utils/barcodeEngine';
+import { BARCODE_FORMATS, FORMAT_LIST, FORMAT_CATEGORIES } from '../../utils/barcodeEngine';
 import { INPUT_MODES } from '../../utils/smartInput';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -90,7 +90,7 @@ export default function Sidebar() {
 
         {/* Category Filter */}
         <div className="flex gap-1.5 mb-3">
-          {['all', '1D', '2D'].map((cat) => (
+          {FORMAT_CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
@@ -106,7 +106,7 @@ export default function Sidebar() {
         </div>
 
         {/* Format Grid */}
-        <div className="grid grid-cols-2 gap-1.5 max-h-[240px] overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 gap-1.5 max-h-[400px] overflow-y-auto pr-1">
           {filteredFormats.map((fmt) => (
             <button
               key={fmt.id}
