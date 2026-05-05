@@ -1,15 +1,19 @@
 {
   "name": "qr-code-generator",
   "private": true,
+  "homepage": "https://<YOUR_GITHUB_USERNAME>.github.io/qr-code-generator",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.27",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.9",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
