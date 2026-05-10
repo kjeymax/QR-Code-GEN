@@ -3,7 +3,7 @@ import { useBarcodeStore } from '../../stores/barcodeStore';
 import { BARCODE_FORMATS } from '../../utils/barcodeEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Clock, Download, Trash2, RotateCcw, Search, X, Image
+  Clock, Trash2, RotateCcw, Search, X
 } from 'lucide-react';
 
 export default function HistoryPanel() {

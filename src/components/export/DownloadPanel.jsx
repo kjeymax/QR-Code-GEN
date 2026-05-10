@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 export default function DownloadPanel() {
-  const { inputData, barcodeFormat, options, addToHistory } = useBarcodeStore();
+  const { inputData, barcodeFormat, options, addToHistory, barcodeReady } = useBarcodeStore();
   const [copiedState, setCopiedState] = useState(null); // 'image' | 'embed' | 'link' | null
   const [embedCode, setEmbedCode] = useState('');
   const [showEmbed, setShowEmbed] = useState(false);
@@ -21,7 +21,7 @@ export default function DownloadPanel() {
 
   const handleExport = useCallback((format) => {
     const canvas = getCanvas();
-    if (!canvas || !inputData) return;
+    if (!canvas || !inputData || !barcodeReady) return;
 
     const filename = `barcode_${barcodeFormat}_${Date.now()}`;
 
@@ -77,7 +77,7 @@ export default function DownloadPanel() {
     setTimeout(() => setCopiedState(null), 2000);
   };
 
-  const isDisabled = !inputData;
+  const isDisabled = !inputData || !barcodeReady;
 
   return (
     <div className="glass-card p-4 space-y-4">

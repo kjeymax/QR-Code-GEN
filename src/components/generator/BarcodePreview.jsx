@@ -6,9 +6,8 @@ import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function BarcodePreview() {
   const canvasRef = useRef(null);
-  const { inputData, barcodeFormat, options, setError, error } = useBarcodeStore();
+  const { inputData, barcodeFormat, options, setError, error, barcodeReady, setBarcodeReady } = useBarcodeStore();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isValid, setIsValid] = useState(false);
   const debounceTimer = useRef(null);
 
   // Store canvas ref globally for export
@@ -17,23 +16,30 @@ export default function BarcodePreview() {
     return () => { window.__barcodeCanvas = null; };
   }, []);
 
+  // Helper to clear the canvas
+  const clearCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = 400;
+      canvas.height = 200;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, []);
+
   const renderBarcode = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas || !inputData) {
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        canvas.width = 400;
-        canvas.height = 200;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
-      setIsValid(false);
+      clearCanvas();
+      setBarcodeReady(false);
       return;
     }
 
     const validation = validateInput(inputData, barcodeFormat);
     if (!validation.valid) {
       setError(validation.error);
-      setIsValid(false);
+      setBarcodeReady(false);
+      clearCanvas();
       return;
     }
 
@@ -42,24 +48,28 @@ export default function BarcodePreview() {
 
     try {
       await generateBarcode(canvas, inputData, barcodeFormat, options);
-      setIsValid(true);
+      setBarcodeReady(true);
       setError(null);
     } catch (err) {
       setError(err.message || 'Failed to generate barcode');
-      setIsValid(false);
+      setBarcodeReady(false);
+      clearCanvas();
     } finally {
       setIsGenerating(false);
     }
-  }, [inputData, barcodeFormat, options, setError]);
+  }, [inputData, barcodeFormat, options, setError, setBarcodeReady, clearCanvas]);
 
-  // Debounced rendering
+  // Debounced rendering — reset state immediately, render after delay
   useEffect(() => {
+    // Immediately reset ready state to prevent stale badge/download
+    setBarcodeReady(false);
+
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(renderBarcode, 150);
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [renderBarcode]);
+  }, [renderBarcode, setBarcodeReady]);
 
   const formatDef = BARCODE_FORMATS[barcodeFormat];
 
@@ -79,7 +89,7 @@ export default function BarcodePreview() {
             <span>{error}</span>
           </motion.div>
         )}
-        {isValid && !error && inputData && (
+        {barcodeReady && !error && inputData && (
           <motion.div
             key="success"
             initial={{ opacity: 0, y: -10 }}

@@ -53,9 +53,13 @@ export const useBarcodeStore = create(
       // Error
       error: null,
 
+      // Whether a valid barcode is currently rendered
+      barcodeReady: false,
+
       // Actions
-      setInputData: (data) => set({ inputData: data, error: null }),
-      setBarcodeFormat: (format) => set({ barcodeFormat: format, error: null }),
+      setInputData: (data) => set({ inputData: data, error: null, barcodeReady: false }),
+      setBarcodeFormat: (format) => set({ barcodeFormat: format, error: null, barcodeReady: false }),
+      setBarcodeReady: (ready) => set({ barcodeReady: ready }),
       setInputMode: (mode) => set({ inputMode: mode }),
       setOption: (key, value) => set((state) => ({
         options: { ...state.options, [key]: value }

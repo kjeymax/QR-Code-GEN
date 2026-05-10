@@ -106,7 +106,7 @@ export const BARCODE_FORMATS = {
   gs1_128: {
     id: 'gs1_128', name: 'GS1-128', engine: 'bwipjs', bcid: 'gs1-128', category: '1D',
     description: 'Supply chain standard', icon: '|||',
-    validate: (v) => v.length > 0,
+    validate: (v) => /^\(\d{2,4}\)/.test(v),
     placeholder: '(01)09501101530003',
   },
   isbn: {
@@ -329,7 +329,7 @@ export const BARCODE_FORMATS = {
   auspost: {
     id: 'auspost', name: 'Australia Post', engine: 'bwipjs', bcid: 'auspost', category: 'Postal',
     description: 'Australia postal code', icon: '✉',
-    validate: (v) => /^\d{8,23}$/.test(v), placeholder: '5956439111ABA9',
+    validate: (v) => /^[\dA-Za-z]{8,23}$/.test(v), placeholder: '5956439111ABA9',
   },
   daft: {
     id: 'daft', name: 'DAFT Code', engine: 'bwipjs', bcid: 'daft', category: 'Postal',
@@ -346,27 +346,27 @@ export const BARCODE_FORMATS = {
   gs1_datamatrix: {
     id: 'gs1_datamatrix', name: 'GS1 Data Matrix', engine: 'bwipjs', bcid: 'gs1datamatrix', category: '2D',
     description: 'GS1 Data Matrix', icon: '⊞',
-    validate: (v) => v.length > 0, placeholder: '(01)09501101530003',
+    validate: (v) => /^\(\d{2,4}\)/.test(v), placeholder: '(01)09501101530003',
   },
   gs1_qrcode: {
     id: 'gs1_qrcode', name: 'GS1 QR Code', engine: 'bwipjs', bcid: 'gs1qrcode', category: '2D',
     description: 'GS1 QR Code', icon: '⊞',
-    validate: (v) => v.length > 0, placeholder: '(01)09501101530003',
+    validate: (v) => /^\(\d{2,4}\)/.test(v), placeholder: '(01)09501101530003',
   },
   gs1_dotcode: {
     id: 'gs1_dotcode', name: 'GS1 DotCode', engine: 'bwipjs', bcid: 'gs1dotcode', category: '2D',
     description: 'GS1 DotCode', icon: '⊞',
-    validate: (v) => v.length > 0, placeholder: '(01)09501101530003',
+    validate: (v) => /^\(\d{2,4}\)/.test(v), placeholder: '(01)09501101530003',
   },
   gs1northamericancoupon: {
     id: 'gs1northamericancoupon', name: 'GS1 NA Coupon', engine: 'bwipjs', bcid: 'gs1northamericancoupon', category: '1D',
     description: 'North American coupon', icon: '|||',
-    validate: (v) => v.length > 0, placeholder: '(8110)0012345...',
+    validate: (v) => /^\(\d{2,4}\)/.test(v), placeholder: '(8110)0012345...',
   },
   ean13composite: {
     id: 'ean13composite', name: 'EAN-13 Composite', engine: 'bwipjs', bcid: 'ean13composite', category: '1D',
     description: 'EAN-13 with 2D', icon: '|||',
-    validate: (v) => v.length > 0, placeholder: '2112345678392|(99)1234-abcd',
+    validate: (v) => v.includes('|') && v.length > 3, placeholder: '2112345678392|(99)1234-abcd',
   },
 
   // ── EAN/UPC Variants ──
@@ -553,6 +553,17 @@ export async function generateBarcode(canvas, data, format, options = {}) {
     }
   } catch (err) {
     console.error('Barcode generation error:', err);
+    // Provide user-friendly error messages for common bwip-js errors
+    const msg = err.message || String(err);
+    if (msg.includes('bwipp.')) {
+      // Extract meaningful part from bwip-js error codes
+      const cleanMsg = msg
+        .replace(/bwipp\.\w+#\d+:\s*/, '')   // Remove error code prefix
+        .replace(/bwipp\.\w+:\s*/, '')         // Remove simple prefix
+        .replace(/#\d+$/, '')                   // Remove trailing error number
+        .trim();
+      throw new Error(cleanMsg || `Invalid data for ${format} format`);
+    }
     throw err;
   }
   return false;
