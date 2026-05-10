@@ -1,7 +1,7 @@
 {
   "name": "qr-code-generator",
   "private": true,
-  "homepage": "https://github.com/kjeymax.github.io/qr-code-generator",
+  "homepage": "https://kjeymax.github.io/QR-Code-generator-2",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.27",
     "gh-pages": "^6.3.0",
     "postcss": "^8.5.9",
@@ -20,7 +21,6 @@
     "vite": "^8.0.4"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^6.0.1",
     "bwip-js": "^4.9.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.38.0",
