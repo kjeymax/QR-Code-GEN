@@ -2,9 +2,9 @@
  * Telegram Bot API integration for bug reports and feedback
  */
 
-const BOT_TOKEN = '8514501470:AAFjyi0qlm4PqBDB5Cm6YceRfjd0VQAtzuw';
-const CHAT_ID = '-1001735852859';
-const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+const CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+const API_BASE = BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : '';
 
 /**
  * Send a bug report or feedback message via Telegram Bot
@@ -38,6 +38,11 @@ export async function sendBugReport({ name, email, type, description, url, userA
     ``,
     `— _Sent from BarcodePro by EduTechMinds_`,
   ].join('\n');
+
+  if (!BOT_TOKEN || !CHAT_ID) {
+    console.error('Telegram credentials not configured. Set VITE_TELEGRAM_BOT_TOKEN and VITE_TELEGRAM_CHAT_ID in your .env file.');
+    return { success: false, error: 'Telegram credentials not configured' };
+  }
 
   try {
     const response = await fetch(`${API_BASE}/sendMessage`, {

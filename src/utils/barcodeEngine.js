@@ -14,6 +14,43 @@ async function loadBwipJs() {
   return bwipjsLoading;
 }
 
+/**
+ * Calculate the standard EAN/UPC check digit for a numeric string.
+ * Works for EAN-13 (12 data digits), EAN-8 (7 data digits),
+ * UPC-A (11 data digits), and ITF-14 (13 data digits).
+ */
+function calcCheckDigit(digits) {
+  const nums = digits.split('').map(Number);
+  const len = nums.length;
+  let sum = 0;
+  for (let i = 0; i < len; i++) {
+    // Weight alternates 1,3 from the right for the data portion
+    const weight = (len - i) % 2 === 0 ? 1 : 3;
+    sum += nums[i] * weight;
+  }
+  return (10 - (sum % 10)) % 10;
+}
+
+/**
+ * Validate a barcode that uses EAN/UPC check-digit rules.
+ * @param {string} v - Input value
+ * @param {number} dataLen - Number of data digits (without check digit)
+ * @param {string} formatName - Human-readable format name for error messages
+ * @returns {true|string} true if valid, or an error string
+ */
+function validateWithCheckDigit(v, dataLen, formatName) {
+  const fullLen = dataLen + 1;
+  if (v.length === dataLen) return true; // JsBarcode will auto-append check digit
+  if (v.length === fullLen) {
+    const expected = calcCheckDigit(v.substring(0, dataLen));
+    if (parseInt(v[dataLen]) !== expected) {
+      return `Invalid check digit for ${formatName}. Expected last digit to be ${expected}, got ${v[dataLen]}.`;
+    }
+    return true;
+  }
+  return `${formatName} requires ${dataLen} or ${fullLen} digits.`;
+}
+
 // Format definitions with metadata
 export const BARCODE_FORMATS = {
   // 1D Barcodes (JsBarcode)
@@ -32,19 +69,28 @@ export const BARCODE_FORMATS = {
   EAN13: {
     id: 'EAN13', name: 'EAN-13', engine: 'jsbarcode', category: '1D',
     description: 'European product code', icon: '|||',
-    validate: (v) => /^\d{12,13}$/.test(v),
+    validate: (v) => {
+      if (!/^\d{12,13}$/.test(v)) return 'EAN-13 requires 12 or 13 digits.';
+      return validateWithCheckDigit(v, 12, 'EAN-13');
+    },
     placeholder: '590123412345',
   },
   EAN8: {
     id: 'EAN8', name: 'EAN-8', engine: 'jsbarcode', category: '1D',
     description: 'Short product code', icon: '|||',
-    validate: (v) => /^\d{7,8}$/.test(v),
+    validate: (v) => {
+      if (!/^\d{7,8}$/.test(v)) return 'EAN-8 requires 7 or 8 digits.';
+      return validateWithCheckDigit(v, 7, 'EAN-8');
+    },
     placeholder: '9638507',
   },
   UPC: {
     id: 'UPC', name: 'UPC-A', engine: 'jsbarcode', category: '1D',
     description: 'US product code', icon: '|||',
-    validate: (v) => /^\d{11,12}$/.test(v),
+    validate: (v) => {
+      if (!/^\d{11,12}$/.test(v)) return 'UPC-A requires 11 or 12 digits.';
+      return validateWithCheckDigit(v, 11, 'UPC-A');
+    },
     placeholder: '01234567890',
   },
   UPCE: {
@@ -56,7 +102,10 @@ export const BARCODE_FORMATS = {
   ITF14: {
     id: 'ITF14', name: 'ITF-14', engine: 'jsbarcode', category: '1D',
     description: 'Shipping containers', icon: '|||',
-    validate: (v) => /^\d{13,14}$/.test(v),
+    validate: (v) => {
+      if (!/^\d{13,14}$/.test(v)) return 'ITF-14 requires 13 or 14 digits.';
+      return validateWithCheckDigit(v, 13, 'ITF-14');
+    },
     placeholder: '0614141999996',
   },
   CODE93: {
@@ -553,18 +602,25 @@ export async function generateBarcode(canvas, data, format, options = {}) {
     }
   } catch (err) {
     console.error('Barcode generation error:', err);
-    // Provide user-friendly error messages for common bwip-js errors
     const msg = err.message || String(err);
+
+    // Provide user-friendly error messages for common bwip-js errors
     if (msg.includes('bwipp.')) {
-      // Extract meaningful part from bwip-js error codes
       const cleanMsg = msg
         .replace(/bwipp\.\w+#\d+:\s*/, '')   // Remove error code prefix
         .replace(/bwipp\.\w+:\s*/, '')         // Remove simple prefix
         .replace(/#\d+$/, '')                   // Remove trailing error number
         .trim();
-      throw new Error(cleanMsg || `Invalid data for ${format} format`);
+      throw new Error(cleanMsg || `Invalid data for ${formatDef.name} format`);
     }
-    throw err;
+
+    // Handle JsBarcode minified errors (e.g. '"x" is not a valid input for r')
+    if (msg.includes('is not a valid input')) {
+      throw new Error(`"${data}" is not valid for ${formatDef.name}. Check your input and ensure any check digits are correct.`);
+    }
+
+    // Generic fallback: wrap with format context so the user knows what went wrong
+    throw new Error(`${formatDef.name} error: ${msg}`);
   }
   return false;
 }
@@ -590,28 +646,25 @@ export async function generateBarcodeSVG(data, format, options = {}) {
 
   if (formatDef.engine === 'jsbarcode') {
     const svgNs = 'http://www.w3.org/2000/svg';
+    const fragment = document.createDocumentFragment();
     const svg = document.createElementNS(svgNs, 'svg');
-    document.body.appendChild(svg);
+    fragment.appendChild(svg);
 
-    try {
-      JsBarcode(svg, data, {
-        format: formatDef.id,
-        width,
-        height,
-        margin,
-        background,
-        lineColor: foreground,
-        fontSize,
-        font: fontFamily,
-        displayValue: showText,
-        xmlDocument: document,
-      });
+    JsBarcode(svg, data, {
+      format: formatDef.id,
+      width,
+      height,
+      margin,
+      background,
+      lineColor: foreground,
+      fontSize,
+      font: fontFamily,
+      displayValue: showText,
+      xmlDocument: document,
+    });
 
-      const serializer = new XMLSerializer();
-      return serializer.serializeToString(svg);
-    } finally {
-      document.body.removeChild(svg);
-    }
+    const serializer = new XMLSerializer();
+    return serializer.serializeToString(svg);
   } else if (formatDef.engine === 'bwipjs') {
     const bwip = await loadBwipJs();
 
@@ -735,8 +788,13 @@ export function validateInput(data, format) {
   if (!data) return { valid: false, error: 'Please enter data to encode' };
   const formatDef = BARCODE_FORMATS[format];
   if (!formatDef) return { valid: false, error: 'Unknown format selected' };
-  if (!formatDef.validate(data)) {
-    return { valid: false, error: `Invalid input for ${formatDef.name}. Expected: ${formatDef.placeholder}` };
-  }
+
+  const result = formatDef.validate(data);
+
+  // Validators can return: true (valid), a string (specific error), or false (generic invalid)
+  if (result === true) return { valid: true, error: null };
+  if (typeof result === 'string') return { valid: false, error: result };
+  if (!result) return { valid: false, error: `Invalid input for ${formatDef.name}. Expected: ${formatDef.placeholder}` };
+
   return { valid: true, error: null };
 }
