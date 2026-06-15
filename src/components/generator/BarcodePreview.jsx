@@ -10,6 +10,14 @@ export default function BarcodePreview() {
   const [isGenerating, setIsGenerating] = useState(false);
   const debounceTimer = useRef(null);
 
+  // Use refs for values that change frequently to avoid re-creating renderBarcode
+  const optionsRef = useRef(options);
+  const inputDataRef = useRef(inputData);
+  const barcodeFormatRef = useRef(barcodeFormat);
+  useEffect(() => { optionsRef.current = options; }, [options]);
+  useEffect(() => { inputDataRef.current = inputData; }, [inputData]);
+  useEffect(() => { barcodeFormatRef.current = barcodeFormat; }, [barcodeFormat]);
+
   // Store canvas ref globally for export
   useEffect(() => {
     window.__barcodeCanvas = canvasRef.current;
@@ -27,15 +35,20 @@ export default function BarcodePreview() {
     }
   }, []);
 
+  // Stable render function that reads current values from refs
   const renderBarcode = useCallback(async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !inputData) {
+    const currentData = inputDataRef.current;
+    const currentFormat = barcodeFormatRef.current;
+    const currentOptions = optionsRef.current;
+
+    if (!canvas || !currentData) {
       clearCanvas();
       setBarcodeReady(false);
       return;
     }
 
-    const validation = validateInput(inputData, barcodeFormat);
+    const validation = validateInput(currentData, currentFormat);
     if (!validation.valid) {
       setError(validation.error);
       setBarcodeReady(false);
@@ -47,7 +60,7 @@ export default function BarcodePreview() {
     setError(null);
 
     try {
-      await generateBarcode(canvas, inputData, barcodeFormat, options);
+      await generateBarcode(canvas, currentData, currentFormat, currentOptions);
       setBarcodeReady(true);
       setError(null);
     } catch (err) {
@@ -57,9 +70,9 @@ export default function BarcodePreview() {
     } finally {
       setIsGenerating(false);
     }
-  }, [inputData, barcodeFormat, options, setError, setBarcodeReady, clearCanvas]);
+  }, [setError, setBarcodeReady, clearCanvas]);
 
-  // Debounced rendering — reset state immediately, render after delay
+  // Debounced rendering — triggers when inputData, barcodeFormat, or options change
   useEffect(() => {
     // Immediately reset ready state to prevent stale badge/download
     setBarcodeReady(false);
@@ -69,7 +82,8 @@ export default function BarcodePreview() {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [renderBarcode, setBarcodeReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputData, barcodeFormat, options, renderBarcode]);
 
   const formatDef = BARCODE_FORMATS[barcodeFormat];
 

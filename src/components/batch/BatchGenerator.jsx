@@ -4,7 +4,7 @@ import { generateBarcode, BARCODE_FORMATS, FORMAT_LIST } from '../../utils/barco
 import { motion, AnimatePresence } from 'framer-motion';
 import Papa from 'papaparse';
 import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+// Note: Using native downloadBlob instead of file-saver to avoid ad-blocker interference
 import {
   Upload, FileSpreadsheet, Download, Trash2, Play, Loader2,
   CheckCircle2, AlertCircle, X, Package
@@ -120,7 +120,44 @@ export default function BatchGenerator() {
     // Generate ZIP
     try {
       const zipBlob = await zip.generateAsync({ type: 'blob' });
-      saveAs(zipBlob, `barcodes_batch_${Date.now()}.zip`);
+      // Use data: URL approach to bypass ad-blockers (same as exportEngine.js)
+      const reader = new FileReader();
+      reader.onloadend = function () {
+        const dataUrl = reader.result;
+        if (!dataUrl) {
+          // Fallback: blob URL
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `barcodes_batch_${Date.now()}.zip`;
+          a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+          document.body.appendChild(a);
+          a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: false, view: window }));
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+          return;
+        }
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `barcodes_batch_${Date.now()}.zip`;
+        a.rel = 'noopener';
+        a.target = '_self';
+        a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+        document.body.appendChild(a);
+        a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: false, view: window }));
+        requestAnimationFrame(() => { if (a.parentNode) document.body.removeChild(a); });
+      };
+      reader.onerror = function () {
+        // Fallback: blob URL
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `barcodes_batch_${Date.now()}.zip`;
+        a.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+        document.body.appendChild(a);
+        a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: false, view: window }));
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+      };
+      reader.readAsDataURL(zipBlob);
     } catch (err) {
       console.error('ZIP generation error:', err);
     }
